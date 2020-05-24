@@ -8,6 +8,7 @@ except ImportError:
 import time
 import pandas as pd
 import tempfile
+import sys
 
 SAVEFILE = "pogoqueue.csv"
 RESULTFILE = "pogoresult.csv"
@@ -15,7 +16,8 @@ LEAGUEFILE = "pogoleague.txt"
 
 defaulttemp = tempfile.gettempdir()
 league_lookup = {'great': 1500, 'ultra': 2500, 'master': 10000, 1500: 1500, \
-              2500: 2500, 10000: 10000}
+              2500: 2500, 10000: 10000, '1500': 1500, '2500': 2500, '10000': \
+              10000}
 
 class Pokemon(object):
     
@@ -74,6 +76,18 @@ class Roster(PokemonCollection):
             for pokemon in self.required:
                 lineup.append(pokemon)
         return lineups
+    
+    def evaluate(self, league):
+        lq = LineupQueue(league)
+        for l in self.create_lineups():
+            try:
+                lineup = Lineup(*tuple(l), league)
+                lq.add(lineup)
+            except InvalidLineupException:
+                pass
+        lq.save()
+        return lq.evaluate()
+        
 
 class Lineup(PokemonCollection):
     
@@ -190,3 +204,26 @@ class TimeOutError(Exception):
 
 class InvalidLeagueException(Exception):
     pass
+
+if __name__ == "__main__":
+    args = sys.argv
+    if len(args) == 1:
+        lq = LineupQueue.from_folder()
+        lq.evaluate()
+    elif len(args) == 2:
+        lq = LineupQueue.from_folder(args[1])
+        lq.evaluate()
+    elif len(args) == 3:
+        mons = Roster.from_csv(args[1])
+        league = league_lookup(args[2])
+        mons.evaluate(league)
+    elif len(args) == 4:
+        mons = Roster.from_csv(args[1], args[3])
+        league = league_lookup(args[2])
+        mons.evaluate(league)
+    elif len(args) == 5:
+        mons = Roster.from_csv(args[1], args[3], args[4])
+        league = league_lookup(args[2])
+        mons.evaluate(league)
+    else:
+        print("Invalid # of paramters")
