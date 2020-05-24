@@ -9,11 +9,15 @@ class Pokemon(object):
         self.nickname = nickname
         self.type = identifier.split("-")[0]
         
+    def __str__(self):
+        return "Type: {}, Nickname: {}".format(self.type, self.nickname)
+        
 class PokemonCollection(ABC):
     
     def __init__(self):
         self.pokemons = []
         self.types = set()
+
     
     def add(self, pokemon):
         self.pokemons.append(pokemon)
@@ -32,7 +36,7 @@ class Lineup(PokemonCollection):
         if len(self.types) != 3:
             raise InvalidLineupException
             
-    def get_rating(self):
+    def get_rating(self, browser = None):
         pass
             
 class InvalidLineupException(Exception):
