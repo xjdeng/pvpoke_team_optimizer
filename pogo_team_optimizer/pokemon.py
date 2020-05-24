@@ -9,6 +9,7 @@ import time
 import pandas as pd
 import tempfile
 import sys
+from path import Path as path
 
 SAVEFILE = "pogoqueue.csv"
 RESULTFILE = "pogoresult.csv"
@@ -207,7 +208,13 @@ class Lineup(PokemonCollection):
                 self.league, pokemons[0].identifier, pokemons[1].identifier, \
                 pokemons[2].identifier)
             
-
+def cleanup():
+    p1 = path("{}/{}".format(defaulttemp, RESULTFILE))
+    p2 = path("{}/{}".format(defaulttemp, SAVEFILE))
+    if p1.exists():
+        p1.remove()
+    if p2.exists():
+        p2.remove()
 
 if __name__ == "__main__":
     args = sys.argv
@@ -218,14 +225,17 @@ if __name__ == "__main__":
         lq = LineupQueue.from_folder(args[1])
         lq.evaluate()
     elif len(args) == 3:
+        cleanup()
         mons = Roster.from_csv(args[1])
         league = league_lookup[args[2]]
         mons.evaluate(league)
     elif len(args) == 4:
+        cleanup()
         mons = Roster.from_csv(args[1], args[3])
         league = league_lookup[args[2]]
         mons.evaluate(league)
     elif len(args) == 5:
+        cleanup()
         mons = Roster.from_csv(args[1], args[3], args[4])
         league = league_lookup[args[2]]
         mons.evaluate(league)
