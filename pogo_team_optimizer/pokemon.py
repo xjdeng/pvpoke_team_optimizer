@@ -15,12 +15,12 @@ class Pokemon(object):
 class PokemonCollection(ABC):
     
     def __init__(self):
-        self.pokemons = []
+        self.pokemons = set()
         self.types = set()
 
     
     def add(self, pokemon):
-        self.pokemons.append(pokemon)
+        self.pokemons.add(pokemon)
         self.types.add(pokemon.type)
 
 class Roster(PokemonCollection):
