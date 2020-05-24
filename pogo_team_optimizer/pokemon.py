@@ -1,4 +1,5 @@
 from abc import ABC
+from itertools import combinations 
 
 class Pokemon(object):
     
@@ -37,7 +38,13 @@ class Roster(PokemonCollection):
             self.required.add(pokemon)
     
     def create_lineups(self):
-        pass
+        optional = self.pokemons - self.required
+        k = 3 - len(self.required)
+        lineups = list(combinations(optional, k))
+        for lineup in lineups:
+            for pokemon in self.required:
+                lineup.append(pokemon)
+        return lineups
 
 class Lineup(PokemonCollection):
     
