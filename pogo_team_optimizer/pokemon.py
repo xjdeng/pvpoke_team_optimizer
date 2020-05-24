@@ -7,3 +7,12 @@ class Pokemon(object):
             nickname = identifier
         self.nickname = nickname
         self.type = identifier.split("-")[0]
+        
+class PokemonCollection(object):
+    pass
+
+class Roster(PokemonCollection):
+    pass
+
+class Lineup(PokemonCollection):
+    pass
