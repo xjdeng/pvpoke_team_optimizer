@@ -25,6 +25,16 @@ class PokemonCollection(ABC):
 
 class Roster(PokemonCollection):
     
+    def __init__(self):
+        super().__init__()
+        self.required = set()
+        
+    def add(self, pokemon, required = False):
+        super().add(pokemon)
+        if required:
+            if (len(self.required) == 2) & (pokemon not in self.required):
+                raise TooManyRequiredPokemons
+    
     def create_lineups(self):
         pass
 
@@ -40,4 +50,7 @@ class Lineup(PokemonCollection):
         pass
             
 class InvalidLineupException(Exception):
+    pass
+
+class TooManyRequiredPokemons(Exception):
     pass
