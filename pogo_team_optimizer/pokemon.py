@@ -34,11 +34,19 @@ class Roster(PokemonCollection):
         if required:
             if (len(self.required) == 2) & (pokemon not in self.required):
                 raise TooManyRequiredPokemons
+            self.required.add(pokemon)
     
     def create_lineups(self):
         pass
 
 class Lineup(PokemonCollection):
+    
+    def __init__(self, pokemon1, pokemon2, pokemon3):
+        super().__init__()
+        self.add(pokemon1)
+        self.add(pokemon2)
+        self.add(pokemon3)
+        self.raise_for_validation()
     
     def raise_for_validation(self):
         if len(self.pokemons) != 3:
