@@ -19,10 +19,22 @@ league_lookup = {'great': 1500, 'ultra': 2500, 'master': 10000, 1500: 1500, \
               2500: 2500, 10000: 10000, '1500': 1500, '2500': 2500, '10000': \
               10000}
 
+class InvalidLineupException(Exception):
+    pass
+
+class TooManyRequiredPokemons(Exception):
+    pass
+
+class TimeOutError(Exception):
+    pass
+
+class InvalidLeagueException(Exception):
+    pass
+
 class Pokemon(object):
     
     def __init__(self, identifier, nickname = None):
-        self.identifier = identifier
+        self.identifier = identifier.lower()
         if not nickname:
             nickname = identifier
         self.nickname = nickname
@@ -30,6 +42,74 @@ class Pokemon(object):
         
     def __str__(self):
         return "Type: {}, Nickname: {}".format(self.type, self.nickname)
+    
+class LineupQueue(object):
+    
+    def __init__(self, league, folder = defaulttemp):
+
+        self.folder = folder
+        self.league = league
+        self.data = pd.DataFrame(columns = ['pokemon1','pokemon2','pokemon3',\
+                                            'url'])
+    
+    @classmethod
+    def from_folder(cls, folder = defaulttemp):
+        with open("{}/{}".format(folder, LEAGUEFILE),'r') as f:
+            league = f.read().strip()
+        res = cls(league, folder)
+        res.data = pd.read_csv("{}/{}".format(folder, SAVEFILE), index_col = 0)
+        return res
+    
+    def add(self, lineup):
+        if self.league != lineup.league:
+            raise InvalidLeagueException
+        pokemons = list(lineup.pokemons)
+        row = [pokemons[0].nickname, pokemons[1].nickname, \
+               pokemons[2].nickname, lineup.make_rating_url()]
+        i = len(self.data)
+        self.data.loc[i] = row
+        
+    def save(self):
+        self.data.to_csv("{}/{}".format(self.folder, SAVEFILE))
+        with open("{}/{}".format(self.folder, LEAGUEFILE),'w') as f:
+            f.write(str(self.league))
+            
+    def evaluate(self, browser = None, wait = 0.5, tries = 20):
+        if browser is None:
+            browser = EasyWebdriver.Chrome()
+        while len(self.data.index) > 0:
+            idx = self.data.index[0]
+            url = self.data['url'].loc[idx]
+            rating = ""
+            browser.get(url)
+            for i in range(0, tries):
+                rating = browser.find_element_by_class_name("threat-score").text
+                try:
+                    intrating = int(rating)
+                    break
+                except ValueError:
+                    pass
+                time.sleep(wait)
+            if rating == "":
+                raise TimeOutError
+            try:
+                df = pd.read_csv("{}/{}".format(self.folder, RESULTFILE),\
+                                 index_col = 0)
+            except FileNotFoundError:
+                df = pd.DataFrame(columns = ['pokemon1','pokemon2','pokemon3',\
+                                            'url','rating'])
+            row = list(self.data[['pokemon1','pokemon2','pokemon3']].loc[idx]) +\
+            [url, intrating]
+            j = len(df)
+            df.loc[j] = row
+            df.to_csv("{}/{}".format(self.folder, RESULTFILE))
+            self.data.drop(axis=0, index=idx, inplace=True)
+            self.save()
+        try:
+            df.to_csv(RESULTFILE)
+        except IOError:
+            print("Warning: could not save results file")
+        return df
         
 class PokemonCollection(ABC):
     
@@ -51,7 +131,7 @@ class Roster(PokemonCollection):
     @classmethod
     def from_csv(cls, csvfile, required1 = None, required2 = None):
         required = set([required1, required2])
-        df = pd.read_csv(csvfile, index_col = 0)
+        df = pd.read_csv(csvfile)
         res = cls()
         for identifier, nickname in zip(df['identifier'],df['nickname']):
             pokemon = Pokemon(identifier, nickname)
@@ -126,84 +206,8 @@ class Lineup(PokemonCollection):
         return "https://pvpoke.com/team-builder/all/{}/{}%2C{}%2C{}".format(\
                 self.league, pokemons[0].identifier, pokemons[1].identifier, \
                 pokemons[2].identifier)
-        
-def LineupQueue(object):
-    
-    def __init__(self, league, folder = defaulttemp):
-        self.folder = defaulttemp
-        self.league = league
-        self.data = pd.DataFrame(columns = ['pokemon1','pokemon2','pokemon3',\
-                                            'url'])
-    
-    @classmethod
-    def from_folder(cls, folder = defaulttemp):
-        with open("{}/{}".format(folder, LEAGUEFILE),'r') as f:
-            league = f.read().strip()
-        res = cls(league, folder)
-        res.data = pd.read_csv("{}/{}".format(folder, SAVEFILE), index_col = 0)
-        return res
-    
-    def add(self, lineup):
-        if self.league != lineup.league:
-            raise InvalidLeagueException
-        pokemons = list(lineup.pokemons)
-        row = [pokemons[0].nickname, pokemons[1].nickname, \
-               pokemons[2].nickname, lineup.make_rating_url()]
-        i = len(self.data)
-        self.data.loc[i] = row
-        
-    def save(self):
-        self.data.to_csv("{}/{}".format(self.folder, SAVEFILE))
-        with open("{}/{}".format(self.folder, LEAGUEFILE),'w') as f:
-            f.write(self.league)
             
-    def evaluate(self, browser = None, wait = 0.5, tries = 20):
-        if browser is None:
-            browser = EasyWebdriver.Chrome()
-        for i in list(self.data.index):
-            url = self.data['url'].loc[i]
-            rating = ""
-            for i in range(0, tries):
-                browser.get(url)
-                rating = browser.find_element_by_class_name("threat-score").text
-                try:
-                    intrating = int(rating)
-                    break
-                except ValueError:
-                    pass
-                time.sleep(wait)
-            if rating == "":
-                raise TimeOutError
-            try:
-                df = pd.read_csv("{}/{}".format(self.folder, RESULTFILE),\
-                                 index_col = 0)
-            except FileNotFoundError:
-                df = pd.DataFrame(columns = ['pokemon1','pokemon2','pokemon3',\
-                                            'url','rating'])
-            row = list(self.data[['pokemon1','pokemon2','pokemon3']].loc[i]) +\
-            [url, intrating]
-            j = len(df)
-            df.loc[j] = row
-            df.to_csv("{}/{}".format(self.folder, RESULTFILE))
-            self.data.drop(axis=0, index=i, inplace=True)
-            self.save()
-        try:
-            df.to_csv(RESULTFILE)
-        except IOError:
-            print("Warning: could not save results file")
-        return df
-            
-class InvalidLineupException(Exception):
-    pass
 
-class TooManyRequiredPokemons(Exception):
-    pass
-
-class TimeOutError(Exception):
-    pass
-
-class InvalidLeagueException(Exception):
-    pass
 
 if __name__ == "__main__":
     args = sys.argv
@@ -215,15 +219,15 @@ if __name__ == "__main__":
         lq.evaluate()
     elif len(args) == 3:
         mons = Roster.from_csv(args[1])
-        league = league_lookup(args[2])
+        league = league_lookup[args[2]]
         mons.evaluate(league)
     elif len(args) == 4:
         mons = Roster.from_csv(args[1], args[3])
-        league = league_lookup(args[2])
+        league = league_lookup[args[2]]
         mons.evaluate(league)
     elif len(args) == 5:
         mons = Roster.from_csv(args[1], args[3], args[4])
-        league = league_lookup(args[2])
+        league = league_lookup[args[2]]
         mons.evaluate(league)
     else:
         print("Invalid # of paramters")
