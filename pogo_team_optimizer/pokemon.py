@@ -153,9 +153,10 @@ class Roster(PokemonCollection):
         optional = self.pokemons - self.required
         k = 3 - len(self.required)
         lineups = list(combinations(optional, k))
-        for lineup in lineups:
+        for i,lineup in enumerate(lineups):
             for pokemon in self.required:
-                lineup.append(pokemon)
+                lineups[i] = list(lineups[i])
+                lineups[i].append(pokemon)
         return lineups
     
     def evaluate(self, league):
